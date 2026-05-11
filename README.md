@@ -1,69 +1,49 @@
 # 📝 J2S2 API: Personal Insight & Diary Platform
 
-> **"오늘을 기록하고, 내일을 질문하며, 명언으로 영감을 얻는 공간"**
-> J2S2는 사용자의 일상을 기록하는 **일기**, 자아 성찰을 돕는 **질문**, 그리고 외부 실시간 수집 기반의 **명언** 서비스를 제공하는 심리 케어 및 기록 플랫폼입니다.
+> **개인 포트폴리오용 정리** > **프로젝트 기간**: 2026.01.20 ~ 2026.01.23 (4일)  
+> **주요 역할**: 백엔드 인프라 구축, 인증 시스템 구현, 비동기 데이터 스크래핑 엔진 개발
 
 ---
 
-## 🏗 아키텍처 및 기술 스택
-
-본 프로젝트는 유지보수성과 확장성을 위해 **Layered Architecture(계층화 아키텍처)**를 채택하여 비동기로 동작합니다.
-
-
-
-- **Framework**: `FastAPI` (v0.100+)
-- **Database**: `MySQL 8.0+`
-- **ORM**: `Tortoise-ORM` (Async ORM)
-- **Authentication**: `JWT (JSON Web Token)` & `OAuth2 Password Flow`
-- **Security**: `Passlib (PBKDF2-SHA256)` 암호 해싱
-- **Validation**: `Pydantic v2` 기반 데이터 검증
-- **Scraping**: `HTTPX` & `BeautifulSoup4` (비동기 크롤링)
+## 🌟 프로젝트 개요
+**J2S2**는 사용자의 일상을 기록하는 **일기**, 자아 성찰을 돕는 **질문**, 그리고 외부 실시간 수집 기반의 **명언** 서비스를 제공하는 심리 케어 플랫폼입니다. 짧은 기간 내에 비동기 아키텍처를 활용하여 안정적인 데이터 수집 및 인증 시스템을 구축하는 것을 목표로 했습니다.
 
 ---
 
-## 📊 데이터베이스 설계 (ERD)
+## 🛠 담당 기술 스택 및 역할
 
-데이터 간의 관계를 정의하여 효율적인 데이터 관리를 수행합니다.
+### 1. 인프라 및 데이터베이스 (Infrastructure & DB)
+- **AWS 배포**: EC2 인프라를 구축하고 Nginx Reverse Proxy를 설정을 통한 서비스 배포.
+- **DB 설계**: Tortoise-ORM을 활용한 비동기 DB 스키마 설계 및 MySQL 연동.
+- **Migration**: Aerich를 이용한 데이터베이스 마이그레이션 관리.
 
-- **User**: 사용자 인증 및 기본 정보 관리
-- **Diary**: 사용자의 개인 기록 (User : Diary = 1 : N)
-- **Quote**: 외부 사이트에서 수집된 명언 저장소
-- **Question**: 자아 성찰용 질문 데이터셋
-- **Bookmark**: 명언 및 일기에 대한 북마크 (토글 방식의 N:1 관계)
+### 2. 보안 및 인증 (Security & Auth)
+- **JWT 인증**: `python-jose`를 활용한 JSON Web Token 발행 및 유효성 검증 로직 구현.
+- **비밀번호 암호화**: `Passlib`의 `PBKDF2-SHA256` 알고리즘을 적용하여 보안성 강화.
+- **접근 제어**: `OAuth2PasswordBearer`와 Dependency Injection을 통한 중앙 집중식 유저 권한 관리.
 
+### 3. 데이터 서비스 (Data Service & Scraping)
+- **비동기 스크래핑**: `HTTPX`와 `BeautifulSoup4`를 이용해 외부 사이트(`saramro.com`)에서 대량의 명언 데이터를 실시간으로 수집하는 엔진 개발.
+- **지능형 저장 로직**: 수집된 데이터를 DB에 `get_or_create` 방식으로 캐싱하여 API 응답 속도 최적화.
+- **랜덤 조회 API**: DB의 `offset` 연산을 활용해 효율적인 랜덤 명언/질문 추출 로직 구현.
 
-
----
-
-## ✨ 핵심 기능 상세
-
-### 1. 🔐 보안 및 인증 시스템 (`app/core`)
-- **중앙 집중식 설정**: `Pydantic Settings`를 사용하여 환경 변수(`.env`)를 안전하게 관리합니다.
-- **JWT 기반 권한 제어**: 모든 주요 API는 `get_current_user` 의존성 주입을 통해 인증된 사용자만 자신의 데이터에 접근하도록 보호됩니다.
-
-### 2. 📖 지능형 기록 및 성찰 (`app/repositories`)
-- **검색 및 정렬**: 일기 제목에 대한 부분 일치 검색(`icontains`)과 최신순 정렬 기능을 지원합니다.
-- **무작위 질문 추출**: `QuestionRepository`를 통해 DB에 저장된 질문 중 하나를 무작위로 호출하여 사용자에게 사색의 기회를 제공합니다.
-
-### 3. 💡 비동기 명언 스크래핑 (`app/services`)
-- **실시간 데이터 수집**: `saramro.com`의 수천 개 페이지 중 하나를 랜덤으로 선택하여 명언을 추출합니다.
-- **자동 DB 캐싱**: 스크래핑된 명언은 `get_or_create` 로직을 통해 중복 없이 DB에 저장되어 서비스 속도를 높입니다.
-
-### 4. 🔖 스마트 북마크 시스템
-- **통합 토글(Toggle) API**: 추가와 삭제를 하나의 엔드포인트에서 처리하여 클라이언트 로직을 단순화했습니다.
-- **조인 최적화**: `prefetch_related`를 사용해 북마크 조회 시 발생하는 N+1 문제를 방지하고 쿼리 성능을 최적화했습니다.
+### 4. 북마크 시스템 (Bookmark System)
+- **스마트 토글**: 명언 및 일기에 대해 '등록/해제'를 하나의 엔드포인트에서 처리하는 토글 방식 로직 설계.
+- **성능 최적화**: `prefetch_related`를 적용하여 연관 관계 데이터를 단일 쿼리로 조회(N+1 문제 해결).
 
 ---
 
-## 📂 프로젝트 구조
+## 🏗 아키텍처 구조
+
+본 프로젝트는 비동기 처리에 최적화된 **Layered Architecture**를 채택했습니다.
 
 ```text
 app/
-├── core/         # JWT 설정, 암호화 보안, 환경 변수
-├── db/           # DB 연결 설정 및 초기화 (Tortoise-ORM)
-├── models/       # DB 테이블 스키마 정의
-├── repositories/ # 데이터 접근 계층 (Pure DB CRUD Logic)
-├── routers/      # API 엔드포인트 정의 (FastAPI Routers)
+├── core/         # JWT 설정, 암호화 보안, 환경 변수 (담당)
+├── db/           # DB 연결 및 초기화 (담당)
+├── models/       # DB 테이블 스키마 정의 (담당)
+├── repositories/ # 데이터 접근 계층 (담당 - 북마크, 랜덤 조회 등)
+├── routers/      # API 엔드포인트 정의
 ├── schemas/      # Pydantic 데이터 모델 (DTO)
-├── services/     # 명언 스크래핑 및 외부 연동 비즈니스 레이어
-└── templates/    # Jinja2 기반 HTML 템플릿
+├── services/     # 명언 스크래핑 비즈니스 레이어 (담당)
+└── templates/    # HTML 템플릿
